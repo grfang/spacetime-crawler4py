@@ -31,8 +31,9 @@ def extract_next_links(url, resp):
     for link in links:
         href = link.get("href")
         if href != "#" and href is not None:
-            print("link: ", href)
-    
+            # print(type(href)) #str
+            # print("link: ", href)
+            links.append(href)
     return links
 
 def is_valid(url):
@@ -57,5 +58,5 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:
-        print ("TypeError for ", parsed)
+        # print ("TypeError for ", parsed)
         raise
