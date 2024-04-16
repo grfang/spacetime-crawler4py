@@ -15,12 +15,17 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+
+    print(resp.raw_response.content)
     return list()
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    # TODO: might need to filter out more invalid extensions
+    # TODO: filter out urls not containing ics.uci.edu domain
+    
     try:
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
