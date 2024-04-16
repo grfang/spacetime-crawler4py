@@ -27,14 +27,13 @@ def extract_next_links(url, resp):
     
     # parse for href
     soup = BeautifulSoup(decoded, 'html.parser')
+    final_links = []
     links = soup.find_all("a")
     for link in links:
         href = link.get("href")
         if href != "#" and href is not None:
-            # print(type(href)) #str
-            # print("link: ", href)
-            links.append(href)
-    return links
+            final_links.append(href)
+    return final_links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
