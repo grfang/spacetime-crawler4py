@@ -64,7 +64,30 @@ def extract_next_links(url, resp):
                 # convert relative link to absolute link
                 absolute_link = urljoin(base_url, href)
             final_links.append(absolute_link)
-    # add into the buffer
+    
+    url = {}
+    total = 0
+    try:
+        with open("buffer.txt", 'r') as file:
+            total = int(file.readline().strip())
+            for link in file:
+                l, count = link.strip().split()
+                url[l] = int(count)
+    except FileExistsError:
+        pass
+    
+    for i in final_links:
+        if i in url:
+            url[i] += 1
+        else:
+            url[i] = 1
+    
+    total += len(final_links)
+    
+    with open("buffer.txt", 'w') as file:
+        file.write(f"{total}\n")
+        for i, j in url.items():
+            file.write(f"{i} {j}\n")
     
     return final_links
 
@@ -87,6 +110,22 @@ def is_valid(url):
         if not any(domain in parsed.netloc for domain in domains):
             return False
         # if it's already in the buffer.txt then we also skip
+        url_dict = {}
+        total = 0
+        try:
+            with open("buffer.txt", 'r') as file:
+                total = int(file.readline().strip())
+                for link in file:
+                    l, count = link.strip().split()
+                    url[l] = int(count)
+        except FileExistsError:
+            pass
+        if(url_dict[url] >= 4):
+            return False
+        if(total == 50):
+            with open("buffer.txt", 'w') as file:
+                file.write("0\n")
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
