@@ -1,6 +1,10 @@
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
+import hashlib
+import json
+import numpy as np
+from collections import defaultdict
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
