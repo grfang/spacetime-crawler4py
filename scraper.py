@@ -6,10 +6,13 @@ import json
 import numpy as np
 from collections import defaultdict
 
-def scraper(url, resp):
+def scraper(url, resp, small_buffer):
     links = extract_next_links(url, resp)
-
-
+    if(links != []):
+        small_buffer.append(url)
+    if(len(links) > 5):
+        small_buffer.pop(0)
+    
     # prep output for report 2
     decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
     soup = BeautifulSoup(decoded, 'html.parser')
@@ -20,11 +23,12 @@ def scraper(url, resp):
     
     # prep output for report 3
     update_frequencies(text)
-    
-    return [link for link in links if is_valid(link)]
+    return [link for link in links if is_valid(link)], small_buffer
+    #return [link for link in links if is_valid(link)]
 
 
 def extract_next_links(url, resp):
+    #every time extract is called, a buffer for the current url, save the last five pages
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -89,8 +93,30 @@ def extract_next_links(url, resp):
                 # convert relative link to absolute link
                 absolute_link = urljoin(base_url, href)
             final_links.append(absolute_link)
-    # add into the buffer
     
+    # url = {}
+    # total = 0
+    # try:
+    #     with open("buffer.txt", 'r') as file:
+    #         total = int(file.readline().strip())
+    #         for link in file:
+    #             l, count = link.strip().split()
+    #             url[l] = int(count)
+    # except:
+    #     pass
+    
+    # for i in final_links:
+    #     if i in url:
+    #         url[i] += 1
+    #     else:
+    #         url[i] = 1
+    
+    # total += len(final_links)
+    with open("buffer.txt", 'a') as file:
+        #file.write(f"{total}\n")
+        # for i, j in url.items():
+        #     i = i.rstrip(' ')
+        file.write(f"{url}\n")
     return final_links
 
 def is_valid(url):
@@ -100,6 +126,7 @@ def is_valid(url):
     # TODO: might need to filter out more invalid extensions
     
     try:
+        url = url.replace('\u200E', '')
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -112,6 +139,27 @@ def is_valid(url):
         if not any(domain in parsed.netloc for domain in domains):
             return False
         # if it's already in the buffer.txt then we also skip
+        # url_dict = {}
+        # total = 0
+        # try:
+        #     with open("buffer.txt", 'r') as file:
+        #         total = int(file.readline().strip())
+        #         for link in file:
+        #             l = link.strip().split()[0]
+        #             count = link.strip().split()[-1]
+        #             url_dict[l] = int(count)
+        # except FileExistsError:
+        #     pass
+        # try:
+        #     if(url_dict[url] >= 4):
+        #         print("The URL we are skipping is:", url)
+        #         return False
+        # except KeyError:
+        #     pass
+        # if(total > 300):
+        #     with open("buffer.txt", 'w') as file:
+        #         file.write("0\n")
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"

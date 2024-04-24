@@ -23,6 +23,7 @@ class Worker(Thread):
         super().__init__(daemon=True)
         
     def run(self):
+        final_lst = []
         while True:
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
@@ -37,7 +38,8 @@ class Worker(Thread):
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>., "
                 f"using cache {self.config.cache_server}.")
-            scraped_urls = scraper.scraper(tbd_url, resp)
+            scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
+            #scraped_urls = scraper.scraper(tbd_url, resp)
             with open('report-1-and-4.txt', 'a') as file:
                 for link in scraped_urls:
                     file.write(link + '\n')
