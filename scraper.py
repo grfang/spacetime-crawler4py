@@ -1,6 +1,10 @@
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
+import hashlib
+import json
+import numpy as np
+from collections import defaultdict
 
 def scraper(url, resp, small_buffer):
     links = extract_next_links(url, resp)
@@ -8,7 +12,20 @@ def scraper(url, resp, small_buffer):
         small_buffer.append(url)
     if(len(links) > 5):
         small_buffer.pop(0)
+    
+    # prep output for report 2
+    decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
+    soup = BeautifulSoup(decoded, 'html.parser')
+    text = soup.get_text()
+    numWords = findWords(text)
+    with open("report-2.txt", "a") as file:
+        file.write(str(numWords)+"\n")
+    
+    # prep output for report 3
+    update_frequencies(text)
     return [link for link in links if is_valid(link)], small_buffer
+    #return [link for link in links if is_valid(link)]
+
 
 def extract_next_links(url, resp):
     #every time extract is called, a buffer for the current url, save the last five pages
@@ -41,21 +58,28 @@ def extract_next_links(url, resp):
     # FILTER OUT: large & small files
     text = soup.get_text()
     text_length = len(text)
-    # print("text length: ", text_length)
-    # TODO: check for outlying large sizes & small sizes
     with open("length_threshold.txt", "a") as file:
         file.write(str(text_length)+"\n")
+    if text_length < 100 or text_length > 20000:
+        return list()
 
     # FILTER OUT: low information
     html_length = len(soup.prettify())
     ratio = text_length / html_length
-    # print("ratio: ", ratio)
-    # TODO: check for low ratios
     with open("ratio_threshold.txt", "a") as file:
         file.write(str(ratio)+"\n")
+    if ratio <= 0.03:
+        return list()
 
     # FILTER OUT: similar pages w/ simhashing
-    
+    currWeight = findWeights(text)
+    currFingerprint = generate_fingerprint(currWeight)
+    # for each link in buffer, get its text
+    #     prevWeight = findWeights(prevText)
+    #     prevFingerprint = generate_fingerprint(prevWeight)
+
+    #     if similarity(currFingerprint, prevFingerprint) >= (31/32):
+    #         return list()
 
 
     final_links = []
@@ -149,3 +173,150 @@ def is_valid(url):
     except TypeError:
         # print ("TypeError for ", parsed)
         raise
+
+
+def findWords(text):
+    '''
+    Finds all the words on the page, accounts for ' and -
+    Used for report q2 output
+    '''
+    all_tokens = []
+    token = ""
+    for c in text:
+        if (('A' <= c <= 'Z') or ('a' <= c <= 'z') or ('0' <= c <= '9') or (c == "'") or (c == "-")):
+            token += c
+        else:
+            if token:   # if token not empty, add token
+                all_tokens.append(token.lower())
+                token = ""
+    
+    if token:   # add last token
+        all_tokens.append(token.lower())
+    
+    return all_tokens
+
+
+def wordFrequencies(text):
+    '''
+    Finds all the frequencies of words, accounts for ' and -
+    Used for report q3 output
+    '''
+    all_tokens = []
+    token = ""
+    for c in text:
+        if (('A' <= c <= 'Z') or ('a' <= c <= 'z') or ('0' <= c <= '9') or (c == "'") or (c == "-")):
+            token += c
+        else:
+            if token:   # if token not empty, add token
+                all_tokens.append(token.lower())
+                token = ""
+    
+    if token:   # add last token
+        all_tokens.append(token.lower())
+    
+    map = defaultdict(int)
+    # loop through each token and increment its counter in the map
+
+    # stop words
+    stopwords = [
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
+        "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
+        "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
+        "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
+        "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+        "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't",
+        "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
+        "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so",
+        "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there",
+        "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too",
+        "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what",
+        "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with",
+        "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
+    ]
+
+    for token in all_tokens:
+        if token not in stopwords:
+            map[token] += 1
+    
+    return dict(map)
+
+
+def update_frequencies(text):
+    '''
+    Updates json file with new frequencies
+    Used for report q3 output
+    '''
+    try:
+        with open("report-3.json", "r") as file:
+            old_data = json.load(file)
+    except:
+        old_data = {}
+    
+    frequencies = wordFrequencies(text)
+
+    for word, count in frequencies.items():
+        if word in old_data:
+            old_data[word] += count
+        else:
+            old_data[word] = count
+    
+    with open("report-3.json", "w") as file:
+        json.dump(old_data, file, indent=4)
+
+
+def findWeights(text):
+    '''
+    Finds the frequency of each token in a page
+    '''
+    all_tokens = []
+    token = ""
+    for c in text:
+        if (('A' <= c <= 'Z') or ('a' <= c <= 'z') or ('0' <= c <= '9')):
+            token += c
+        else:
+            if token:   # if token not empty, add token
+                all_tokens.append(token.lower())
+                token = ""
+    
+    if token:   # add last token
+        all_tokens.append(token.lower())
+    
+    map = defaultdict(int)
+    # loop through each token and increment its counter in the map
+    for token in all_tokens:
+        map[token] += 1
+    
+    return dict(map)
+
+
+def generate_fingerprint(weights):
+    '''
+    Generates a fingerprint for simhashing purposes
+    '''
+    # initialize Vector V
+    V = np.zeros(32, dtype=int)
+
+    for word, weight in weights.items():
+        # generate hash value
+        hash_value = hashlib.sha256(word.encode()).digest()[:4]
+        hash = ''.join(f"{byte:08b}" for byte in hash_value)
+
+        # create vector V
+        for i, bit in enumerate(hash):
+            if bit == '1':
+                V[i] += weight
+            else:
+                V[i] -= weight
+
+    # generate fingerprint
+    fingerprint = np.where(V > 0, 1, 0)
+    return fingerprint
+
+
+def similarity(fingerprint1, fingerprint2):
+    '''
+    Compares 2 fingerprints and generate a similarity score
+    '''
+    same_bits = sum(b1 == b2 for b1, b2 in zip(fingerprint1, fingerprint2))
+
+    return same_bits / 32.0

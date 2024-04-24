@@ -6,8 +6,10 @@ from utils import get_logger
 import scraper
 import time
 from urllib.parse import urljoin, urlparse
+from urllib.request import urlopen
 from urllib.robotparser import RobotFileParser
 import socket
+from bs4 import BeautifulSoup
 
 
 class Worker(Thread):
@@ -37,11 +39,21 @@ class Worker(Thread):
                 f"Downloaded {tbd_url}, status <{resp.status}>., "
                 f"using cache {self.config.cache_server}.")
             scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
+            #scraped_urls = scraper.scraper(tbd_url, resp)
+            with open('report-1-and-4.txt', 'a') as file:
+                for link in scraped_urls:
+                    file.write(link + '\n')
             # print("David test")
             # print(scraped_urls)
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
+            # sitemap_urls = self.check_and_process_sitemap(base_url)
+            # for sitemap_url in sitemap_urls:
+            #     self.frontier.add_url(sitemap_url)
+            # with open('report-1-and-4.txt', 'a') as file:
+            #     for link in sitemap_urls:
+            #         file.write(link + '\n')
             time.sleep(self.config.time_delay)
 
     def fetch_robots(self, url):
@@ -66,3 +78,36 @@ class Worker(Thread):
         if robot:
             return robot.can_fetch("*", url)
         return True
+    
+    def check_and_process_sitemap(self, url):
+        robots_url = urljoin(url, '/robots.txt')
+        try:
+            with urlopen(robots_url) as response:
+                robots_content = response.read().decode('utf-8')
+            sitemap_url = None
+            for line in robots_content.split('\n'):
+                if line.startswith('Sitemap:'):
+                    sitemap_url = line.split(': ')[1].strip()
+                    break
+            if sitemap_url:
+                return self.process_sitemap(sitemap_url)
+            else:
+                self.logger.info("No sitemap found in robots.txt")
+        except Exception as e:
+            self.logger.error(f"Error while checking sitemap: {e}")
+
+    def process_sitemap(self, sitemap_url):
+        try:
+            sitemap_links = []
+            with urlopen(sitemap_url) as response:
+                sitemap_content = response.read().decode('utf-8')
+            soup = BeautifulSoup(sitemap_content, 'xml')
+            urls = soup.find_all('url')
+            for url in urls:
+                loc = url.find('loc').text.strip()
+                if scraper.is_valid(loc):
+                    sitemap_links.append(loc)
+                    self.logger.info(f"Added {loc} from sitemap")
+            return sitemap_links
+        except Exception as e:
+            self.logger.error(f"Error while processing sitemap: {e}")
