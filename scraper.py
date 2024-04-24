@@ -3,6 +3,7 @@ from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
+    print("jdalfjasdlkvndklsjvklfjlskdf")
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
@@ -83,10 +84,11 @@ def extract_next_links(url, resp):
             url[i] = 1
     
     total += len(final_links)
-    
     with open("buffer.txt", 'w') as file:
         file.write(f"{total}\n")
         for i, j in url.items():
+            i = i.rstrip(' ')
+            #print("This is stored:", i + '}')
             file.write(f"{i} {j}\n")
     
     return final_links
@@ -98,6 +100,8 @@ def is_valid(url):
     # TODO: might need to filter out more invalid extensions
     
     try:
+        print("David: ", url)
+        url = url.replace('\u200E', '')
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -116,7 +120,9 @@ def is_valid(url):
             with open("buffer.txt", 'r') as file:
                 total = int(file.readline().strip())
                 for link in file:
-                    l, count = link.strip().split()
+                    print("Is this the problem? ", link)
+                    l = link.strip().split()[0]
+                    count = link.strip().split()[-1]
                     url_dict[l] = int(count)
         except FileExistsError:
             pass
