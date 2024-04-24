@@ -48,25 +48,23 @@ def extract_next_links(url, resp):
     # FILTER OUT: large & small files
     text = soup.get_text()
     text_length = len(text)
-    # TODO: check for outlying large sizes & small sizes
     with open("length_threshold.txt", "a") as file:
         file.write(str(text_length)+"\n")
-    # if text_length <= small_len_threshold or text_length >= large_len_threshold:
-    #     return list()
+    if text_length < 100 or text_length > 20000:
+        return list()
 
     # FILTER OUT: low information
     html_length = len(soup.prettify())
     ratio = text_length / html_length
-    # TODO: check for low ratios
     with open("ratio_threshold.txt", "a") as file:
         file.write(str(ratio)+"\n")
-    # if ratio <= ratio_threshold:
-    #     return list()
+    if ratio <= 0.03:
+        return list()
 
     # FILTER OUT: similar pages w/ simhashing
     currWeight = findWeights(text)
     currFingerprint = generate_fingerprint(currWeight)
-    # for each link in queue, get its text
+    # for each link in buffer, get its text
     #     prevWeight = findWeights(prevText)
     #     prevFingerprint = generate_fingerprint(prevWeight)
 
@@ -151,10 +149,11 @@ def generate_fingerprint(weights):
 
     for word, weight in weights.items():
         # generate hash value
-        hash_value = format(hash(word) & 0xffffffff, '032b')
+        hash_value = hashlib.sha256(word.encode()).digest()[:4]
+        hash = ''.join(f"{byte:08b}" for byte in hash_value)
 
         # create vector V
-        for i, bit in enumerate(hash_value):
+        for i, bit in enumerate(hash):
             if bit == '1':
                 V[i] += weight
             else:
