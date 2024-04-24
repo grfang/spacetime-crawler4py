@@ -73,7 +73,7 @@ def extract_next_links(url, resp):
             for link in file:
                 l, count = link.strip().split()
                 url[l] = int(count)
-    except FileExistsError:
+    except:
         pass
     
     for i in final_links:
@@ -117,12 +117,15 @@ def is_valid(url):
                 total = int(file.readline().strip())
                 for link in file:
                     l, count = link.strip().split()
-                    url[l] = int(count)
+                    url_dict[l] = int(count)
         except FileExistsError:
             pass
-        if(url_dict[url] >= 4):
-            return False
-        if(total == 50):
+        try:
+            if(url_dict[url] >= 4):
+                return False
+        except KeyError:
+            pass
+        if(total > 300):
             with open("buffer.txt", 'w') as file:
                 file.write("0\n")
 
