@@ -5,7 +5,9 @@ from bs4 import BeautifulSoup
 def scraper(url, resp, small_buffer):
     links = extract_next_links(url, resp)
     if(links != []):
-        links.append(url)
+        small_buffer.append(url)
+    if(len(links) > 5):
+        small_buffer.pop(0)
     return [link for link in links if is_valid(link)], small_buffer
 
 def extract_next_links(url, resp):
