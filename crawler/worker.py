@@ -56,6 +56,7 @@ class Worker(Thread):
             # for sitemap_url in sitemap_urls:
             #     self.frontier.add_url(sitemap_url, depth)
             time.sleep(self.config.time_delay)
+        self.logger.info(f"Number of Unique Pages: {self.unique.count}")
 
     def fetch_robots(self, url):
         parser = RobotFileParser()

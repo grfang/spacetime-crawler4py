@@ -15,19 +15,18 @@ class Unique(object):
         self.config = config
         self.count = 0
         
-        unique_shelf = config.cparser.get('LOCAL PROPERTIES', 'SAVE').split(',')[1].strip()
-        if not os.path.exists(unique_shelf) and not restart:
+        if not os.path.exists(self.config.unique_file) and not restart:
             # Save file does not exist, but request to load save.
             self.logger.info(
-                f"Did not find unique save file {unique_shelf}, "
+                f"Did not find unique save file {self.config.unique_file}, "
                 f"starting from seed.")
-        elif os.path.exists(unique_shelf) and restart:
+        elif os.path.exists(self.config.unique_file) and restart:
             # Save file does exists, but request to start from seed.
             self.logger.info(
-                f"Found unique save file {unique_shelf}, deleting it.")
-            os.remove(unique_shelf)
+                f"Found unique save file {self.config.unique_file}, deleting it.")
+            os.remove(self.config.unique_file)
         # Load existing save file, or create one if it does not exist.
-        self.save = shelve.open(unique_shelf)
+        self.save = shelve.open(self.config.unique_file)
         if restart:
             for url in self.config.seed_urls:
                 self.add_if_unique(url)
