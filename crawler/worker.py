@@ -33,6 +33,12 @@ class Worker(Thread):
             base_url = parsed_url.scheme + "://" + parsed_url.netloc
             if not self.robot_allowed(base_url):
                 self.logger.info(f"Skipping {tbd_url} due to robots.txt rules")
+                self.frontier.mark_url_complete(tbd_url)
+                continue
+            depth = self.frontier.get_depth(tbd_url) + 1
+            if depth > 30:
+                self.logger.info(f"Skipping {tbd_url} due to depth limit")
+                self.frontier.mark_url_complete(tbd_url)
                 continue
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
@@ -41,11 +47,11 @@ class Worker(Thread):
             scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
             #scraped_urls = scraper.scraper(tbd_url, resp)
             for scraped_url in scraped_urls:
-                self.frontier.add_url(scraped_url)
+                self.frontier.add_url(scraped_url, depth)
             self.frontier.mark_url_complete(tbd_url)
             # sitemap_urls = self.check_and_process_sitemap(base_url)
             # for sitemap_url in sitemap_urls:
-            #     self.frontier.add_url(sitemap_url)
+            #     self.frontier.add_url(sitemap_url, depth)
             time.sleep(self.config.time_delay)
 
     def fetch_robots(self, url):
