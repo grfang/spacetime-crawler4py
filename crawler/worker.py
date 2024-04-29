@@ -13,11 +13,12 @@ from bs4 import BeautifulSoup
 
 
 class Worker(Thread):
-    def __init__(self, worker_id, config, frontier, unique):
+    def __init__(self, worker_id, config, frontier, unique, subdomains):
         self.logger = get_logger(f"Worker-{worker_id}", "Worker")
         self.config = config
         self.frontier = frontier
         self.unique = unique
+        self.subdomains = subdomains
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
@@ -49,6 +50,7 @@ class Worker(Thread):
             #scraped_urls = scraper.scraper(tbd_url, resp)
             if len(scraped_url) > 0:
                 self.unique.add_if_unique(tbd_url)
+                self.subdomains.add_if_new_subdomain(tbd_url)
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url, depth)
             self.frontier.mark_url_complete(tbd_url)
@@ -57,6 +59,7 @@ class Worker(Thread):
             #     self.frontier.add_url(sitemap_url, depth)
             time.sleep(self.config.time_delay)
         self.logger.info(f"Number of Unique Pages: {self.unique.count}")
+        self.logger.info(f"Number of subdomains: {self.subdomains.count}")
 
     def fetch_robots(self, url):
         parser = RobotFileParser()

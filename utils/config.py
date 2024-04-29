@@ -10,6 +10,7 @@ class Config(object):
         self.threads_count = int(config["LOCAL PROPERTIES"]["THREADCOUNT"])
         self.save_file = config["LOCAL PROPERTIES"]["SAVE"].split(',')[0]
         self.unique_file = config["LOCAL PROPERTIES"]["SAVE"].split(',')[1]
+        self.subdomain_file = config["LOCAL PROPERTIES"]["SAVE"].split(',')[2]
 
         self.host = config["CONNECTION"]["HOST"]
         self.port = int(config["CONNECTION"]["PORT"])
