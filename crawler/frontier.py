@@ -13,18 +13,19 @@ class Frontier(object):
         self.config = config
         self.to_be_downloaded = list()
         
-        if not os.path.exists(self.config.save_file) and not restart:
+        frontier_shelf = config.cparser.get('LOCAL PROPERTIES', 'SAVE').split(',')[0].strip()
+        if not os.path.exists(frontier_shelf) and not restart:
             # Save file does not exist, but request to load save.
             self.logger.info(
-                f"Did not find save file {self.config.save_file}, "
+                f"Did not find save file {frontier_shelf}, "
                 f"starting from seed.")
-        elif os.path.exists(self.config.save_file) and restart:
+        elif os.path.exists(frontier_shelf) and restart:
             # Save file does exists, but request to start from seed.
             self.logger.info(
-                f"Found save file {self.config.save_file}, deleting it.")
-            os.remove(self.config.save_file)
+                f"Found save file {frontier_shelf}, deleting it.")
+            os.remove(frontier_shelf)
         # Load existing save file, or create one if it does not exist.
-        self.save = shelve.open(self.config.save_file)
+        self.save = shelve.open(frontier_shelf)
         if restart:
             for url in self.config.seed_urls:
                 self.add_url(url, 0)
