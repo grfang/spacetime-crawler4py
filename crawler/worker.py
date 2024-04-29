@@ -40,20 +40,12 @@ class Worker(Thread):
                 f"using cache {self.config.cache_server}.")
             scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
             #scraped_urls = scraper.scraper(tbd_url, resp)
-            with open('report-1-and-4.txt', 'a') as file:
-                for link in scraped_urls:
-                    file.write(link + '\n')
-            # print("David test")
-            # print(scraped_urls)
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
             # sitemap_urls = self.check_and_process_sitemap(base_url)
             # for sitemap_url in sitemap_urls:
             #     self.frontier.add_url(sitemap_url)
-            # with open('report-1-and-4.txt', 'a') as file:
-            #     for link in sitemap_urls:
-            #         file.write(link + '\n')
             time.sleep(self.config.time_delay)
 
     def fetch_robots(self, url):
