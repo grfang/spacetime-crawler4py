@@ -7,7 +7,7 @@ import numpy as np
 from collections import defaultdict
 
 def scraper(url, resp, small_buffer):
-    links = extract_next_links(url, resp)
+    links = extract_next_links(url, resp, small_buffer)
     if(links != []):
         small_buffer.append(url)
     if(len(links) > 5):
@@ -27,7 +27,7 @@ def scraper(url, resp, small_buffer):
     #return [link for link in links if is_valid(link)]
 
 
-def extract_next_links(url, resp):
+def extract_next_links(url, resp, small_buffer):
     #every time extract is called, a buffer for the current url, save the last five pages
     # Implementation required.
     # url: the URL that was used to get the page
@@ -80,6 +80,11 @@ def extract_next_links(url, resp):
 
     #     if similarity(currFingerprint, prevFingerprint) >= (31/32):
     #         return list()
+    for link in small_buffer:
+        prevWeight = findWeights(link)
+        prevFingerprint = generate_fingerprint(prevWeight)
+        if similarity(currFingerprint, prevFingerprint) >= (31/32):
+            return list()
 
 
     final_links = []
