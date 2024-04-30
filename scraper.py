@@ -17,7 +17,7 @@ def scraper(url, resp, small_buffer):
     decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
     soup = BeautifulSoup(decoded, 'html.parser')
     text = soup.get_text()
-    numWords = findWords(text)
+    numWords = len(findWords(text))
     with open("report-2.txt", "a") as file:
         file.write(url + " " + str(numWords)+"\n")
     
@@ -61,7 +61,7 @@ def extract_next_links(url, resp, small_buffer):
     with open("length_threshold.txt", "a") as file:
         file.write(str(text_length)+"\n")
     if text_length < 100 or text_length > 30000:
-        print(f"Skipping {url} bc file too large/small")
+        print(f"Filtering out {url} bc file too large/small")
         return list()
 
     # FILTER OUT: low information
@@ -70,7 +70,7 @@ def extract_next_links(url, resp, small_buffer):
     with open("ratio_threshold.txt", "a") as file:
         file.write(str(ratio)+"\n")
     if ratio <= 0.03:
-        print(f"Skipping {url} bc low info")
+        print(f"Filtering out {url} bc low info")
         return list()
 
     # FILTER OUT: similar pages w/ simhashing
@@ -83,7 +83,7 @@ def extract_next_links(url, resp, small_buffer):
         prevWeight = findWeights(text2)
         prevFingerprint = generate_fingerprint(prevWeight)
         if similarity(currFingerprint, prevFingerprint) >= (31/32):
-            print(f"Skipping {url} bc too similar")
+            print(f"Filtering out {url} bc too similar")
             return list()
 
 
@@ -195,7 +195,7 @@ def wordFrequencies(text):
     ]
 
     for token in all_tokens:
-        if token not in stopwords:
+        if token not in stopwords or len(token) > 1:
             map[token] += 1
     
     return dict(map)

@@ -38,17 +38,18 @@ class Worker(Thread):
                 self.frontier.mark_url_complete(tbd_url)
                 continue
             depth = self.frontier.get_depth(tbd_url) + 1
-            if depth > 30:
-                self.logger.info(f"Skipping {tbd_url} due to depth limit")
-                self.frontier.mark_url_complete(tbd_url)
-                continue
+            print(tbd_url, depth)
+            # if depth > 30:
+            #     self.logger.info(f"Skipping {tbd_url} due to depth limit")
+            #     self.frontier.mark_url_complete(tbd_url)
+            #     continue
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>., "
                 f"using cache {self.config.cache_server}.")
             scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
             #scraped_urls = scraper.scraper(tbd_url, resp)
-            if len(scraped_url) > 0:
+            if len(scraped_urls) > 0:
                 self.unique.add_if_unique(tbd_url)
                 self.subdomains.add_if_new_subdomain(tbd_url)
             for scraped_url in scraped_urls:
