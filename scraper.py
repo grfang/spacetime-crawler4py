@@ -9,7 +9,7 @@ from collections import defaultdict
 def scraper(url, resp, small_buffer):
     links = extract_next_links(url, resp, small_buffer)
     if(links != []):
-        small_buffer.append(url)
+        small_buffer.append((url, resp))
     if(len(links) > 5):
         small_buffer.pop(0)
     
@@ -60,7 +60,8 @@ def extract_next_links(url, resp, small_buffer):
     text_length = len(text)
     with open("length_threshold.txt", "a") as file:
         file.write(str(text_length)+"\n")
-    if text_length < 100 or text_length > 20000:
+    if text_length < 100 or text_length > 30000:
+        print(f"Skipping {url} bc file too large/small")
         return list()
 
     # FILTER OUT: low information
@@ -69,21 +70,20 @@ def extract_next_links(url, resp, small_buffer):
     with open("ratio_threshold.txt", "a") as file:
         file.write(str(ratio)+"\n")
     if ratio <= 0.03:
+        print(f"Skipping {url} bc low info")
         return list()
 
     # FILTER OUT: similar pages w/ simhashing
     currWeight = findWeights(text)
     currFingerprint = generate_fingerprint(currWeight)
-    # for each link in buffer, get its text
-    #     prevWeight = findWeights(prevText)
-    #     prevFingerprint = generate_fingerprint(prevWeight)
-
-    #     if similarity(currFingerprint, prevFingerprint) >= (31/32):
-    #         return list()
-    for link in small_buffer:
-        prevWeight = findWeights(link)
+    for link, r in small_buffer:
+        decoded2 = r.raw_response.content.decode("utf-8", errors="ignore")
+        soup2 = BeautifulSoup(decoded2, 'html.parser')
+        text2 = soup2.get_text()
+        prevWeight = findWeights(text2)
         prevFingerprint = generate_fingerprint(prevWeight)
         if similarity(currFingerprint, prevFingerprint) >= (31/32):
+            print(f"Skipping {url} bc too similar")
             return list()
 
 
@@ -98,30 +98,6 @@ def extract_next_links(url, resp, small_buffer):
                 # convert relative link to absolute link
                 absolute_link = urljoin(base_url, href)
             final_links.append(absolute_link)
-    
-    # url = {}
-    # total = 0
-    # try:
-    #     with open("buffer.txt", 'r') as file:
-    #         total = int(file.readline().strip())
-    #         for link in file:
-    #             l, count = link.strip().split()
-    #             url[l] = int(count)
-    # except:
-    #     pass
-    
-    # for i in final_links:
-    #     if i in url:
-    #         url[i] += 1
-    #     else:
-    #         url[i] = 1
-    
-    # total += len(final_links)
-    with open("buffer.txt", 'a') as file:
-        #file.write(f"{total}\n")
-        # for i, j in url.items():
-        #     i = i.rstrip(' ')
-        file.write(f"{url}\n")
     return final_links
 
 def is_valid(url):
@@ -143,27 +119,6 @@ def is_valid(url):
         domains = ["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"]
         if not any(domain in parsed.netloc for domain in domains):
             return False
-        # if it's already in the buffer.txt then we also skip
-        # url_dict = {}
-        # total = 0
-        # try:
-        #     with open("buffer.txt", 'r') as file:
-        #         total = int(file.readline().strip())
-        #         for link in file:
-        #             l = link.strip().split()[0]
-        #             count = link.strip().split()[-1]
-        #             url_dict[l] = int(count)
-        # except FileExistsError:
-        #     pass
-        # try:
-        #     if(url_dict[url] >= 4):
-        #         print("The URL we are skipping is:", url)
-        #         return False
-        # except KeyError:
-        #     pass
-        # if(total > 300):
-        #     with open("buffer.txt", 'w') as file:
-        #         file.write("0\n")
 
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
