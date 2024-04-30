@@ -44,6 +44,15 @@ class Worker(Thread):
             #     self.frontier.mark_url_complete(tbd_url)
             #     continue
             resp = download(tbd_url, self.config, self.logger)
+            if not resp:
+                for _ in range(5):
+                    resp = download(tbd_url, self.config, self.logger)
+                    if resp:
+                        break
+            if not resp:
+                self.frontier.mark_url_complete(tbd_url)
+                continue
+
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>., "
                 f"using cache {self.config.cache_server}.")
