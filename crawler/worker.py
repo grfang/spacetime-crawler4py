@@ -13,10 +13,12 @@ from bs4 import BeautifulSoup
 
 
 class Worker(Thread):
-    def __init__(self, worker_id, config, frontier):
+    def __init__(self, worker_id, config, frontier, unique, subdomains):
         self.logger = get_logger(f"Worker-{worker_id}", "Worker")
         self.config = config
         self.frontier = frontier
+        self.unique = unique
+        self.subdomains = subdomains
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
@@ -33,6 +35,12 @@ class Worker(Thread):
             base_url = parsed_url.scheme + "://" + parsed_url.netloc
             if not self.robot_allowed(base_url):
                 self.logger.info(f"Skipping {tbd_url} due to robots.txt rules")
+                self.frontier.mark_url_complete(tbd_url)
+                continue
+            depth = self.frontier.get_depth(tbd_url) + 1
+            if depth > 30:
+                self.logger.info(f"Skipping {tbd_url} due to depth limit")
+                self.frontier.mark_url_complete(tbd_url)
                 continue
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
@@ -40,13 +48,18 @@ class Worker(Thread):
                 f"using cache {self.config.cache_server}.")
             scraped_urls, final_lst = scraper.scraper(tbd_url, resp, final_lst)
             #scraped_urls = scraper.scraper(tbd_url, resp)
+            if len(scraped_url) > 0:
+                self.unique.add_if_unique(tbd_url)
+                self.subdomains.add_if_new_subdomain(tbd_url)
             for scraped_url in scraped_urls:
-                self.frontier.add_url(scraped_url)
+                self.frontier.add_url(scraped_url, depth)
             self.frontier.mark_url_complete(tbd_url)
             # sitemap_urls = self.check_and_process_sitemap(base_url)
             # for sitemap_url in sitemap_urls:
-            #     self.frontier.add_url(sitemap_url)
+            #     self.frontier.add_url(sitemap_url, depth)
             time.sleep(self.config.time_delay)
+        self.logger.info(f"Number of Unique Pages: {self.unique.count}")
+        self.logger.info(f"Number of subdomains: {self.subdomains.count}")
 
     def fetch_robots(self, url):
         parser = RobotFileParser()

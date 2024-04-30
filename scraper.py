@@ -19,7 +19,7 @@ def scraper(url, resp, small_buffer):
     text = soup.get_text()
     numWords = findWords(text)
     with open("report-2.txt", "a") as file:
-        file.write(str(numWords)+"\n")
+        file.write(url + " " + str(numWords)+"\n")
     
     # prep output for report 3
     update_frequencies(text)
