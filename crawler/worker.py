@@ -26,30 +26,46 @@ class Worker(Thread):
         
     def run(self):
         final_lst = []
+        archive_count = 0
         while True:
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
-            parsed_url = urlparse(tbd_url)
-            base_url = parsed_url.scheme + "://" + parsed_url.netloc
-            if not self.robot_allowed(base_url):
-                self.logger.info(f"Skipping {tbd_url} due to robots.txt rules")
-                self.frontier.mark_url_complete(tbd_url)
-                continue
+            if 'archive.ics.uci.edu' in tbd_url:
+                if archive_count > 5000:
+                    print(f"NOT PROCESSING {tbd_url} because is it archive and count={archive_count}")
+                    self.frontier.mark_url_complete(tbd_url)
+                    continue
+                else:
+                    print("archive: ", archive_count)
+                    archive_count += 1
+            try:
+                parsed_url = urlparse(tbd_url)
+                base_url = parsed_url.scheme + "://" + parsed_url.netloc
+                if not self.robot_allowed(base_url):
+                    self.logger.info(f"Skipping {tbd_url} due to robots.txt rules")
+                    self.frontier.mark_url_complete(tbd_url)
+                    continue
+            except:
+                pass
             depth = self.frontier.get_depth(tbd_url) + 1
             print(tbd_url, depth)
             # if depth > 30:
             #     self.logger.info(f"Skipping {tbd_url} due to depth limit")
             #     self.frontier.mark_url_complete(tbd_url)
             #     continue
-            resp = download(tbd_url, self.config, self.logger)
-            if not resp:
-                for _ in range(5):
-                    resp = download(tbd_url, self.config, self.logger)
-                    if resp:
-                        break
-            if not resp:
+            try:
+                resp = download(tbd_url, self.config, self.logger)
+                if not resp or not resp.raw_response:
+                    for _ in range(5):
+                        resp = download(tbd_url, self.config, self.logger)
+                        if resp  and resp.raw_response:
+                            break
+                if not resp or not resp.raw_response:
+                    self.frontier.mark_url_complete(tbd_url)
+                    continue
+            except:
                 self.frontier.mark_url_complete(tbd_url)
                 continue
 

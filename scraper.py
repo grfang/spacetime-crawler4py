@@ -112,7 +112,12 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
 
-        # TODO: transform relative to absolute urls
+        banlist = ['gitlab', 'eppstein', 'events', 'calendar']
+        if any(word in url for word in banlist):
+            return False
+        query_banlist = ['edit', 'download', 'login', 'backlink']
+        if any(word in parsed.query for word in query_banlist):
+            return False
 
 
         # FILTER OUT: non ics.uci.edu domains
@@ -195,7 +200,7 @@ def wordFrequencies(text):
     ]
 
     for token in all_tokens:
-        if token not in stopwords or len(token) > 1:
+        if token not in stopwords and len(token) > 1:
             map[token] += 1
     
     return dict(map)
