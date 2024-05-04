@@ -10,6 +10,7 @@ from scraper import is_valid
 from urllib.parse import urlparse
 
 class Unique(object):
+    ''' Same functionality as frontier. In shelve: stores url hashes as keys and urls as values. '''
     def __init__(self, config, restart):
         self.logger = get_logger("UNIQUE")
         self.config = config
@@ -31,18 +32,19 @@ class Unique(object):
             for url in self.config.seed_urls:
                 self.add_if_unique(url)
         else:
-            # Set the frontier state with contents of save file.
+            # Set the unique state with contents of save file.
             self._parse_save_file()
             if not self.save:
                 for url in self.config.seed_urls:
                     self.add_if_unique(url)
 
     def _parse_save_file(self):
-        ''' This function can be overridden for alternate saving techniques. '''
+        ''' Restores the total count value '''
         total_count = len(self.save)
         self.count = total_count
 
     def add_if_unique(self, url):
+        ''' Gets the url without the fragment and stores it in shelve if it doesn't already exist in shelve. '''
         url = normalize(url)
         url = self.extract_url_without_fragment(url)
         urlhash = get_urlhash(url)
@@ -52,6 +54,7 @@ class Unique(object):
             self.count += 1
     
     def extract_url_without_fragment(self, url):
+        ''' Extracts the url without the fragment. '''
         parsed_url = urlparse(url)
         url_without_fragment = parsed_url.scheme + "://" + parsed_url.netloc + parsed_url.path
         if parsed_url.query:

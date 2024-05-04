@@ -10,6 +10,7 @@ from scraper import is_valid
 from urllib.parse import urlparse
 
 class Subdomains(object):
+    ''' Same functionality as frontier. In shelve: stores url hashes as keys and urls, number of unique links with that subdomain as values. '''
     def __init__(self, config, restart):
         self.logger = get_logger("SUBDOMAINS")
         self.config = config
@@ -31,18 +32,19 @@ class Subdomains(object):
             for url in self.config.seed_urls:
                 self.add_if_new_subdomain(url)
         else:
-            # Set the frontier state with contents of save file.
+            # Set the subdomains state with contents of save file.
             self._parse_save_file()
             if not self.save:
                 for url in self.config.seed_urls:
                     self.add_if_new_subdomain(url)
 
     def _parse_save_file(self):
-        ''' This function can be overridden for alternate saving techniques. '''
+        ''' Restores the total count value. '''
         total_count = len(self.save)
         self.count = total_count
 
     def add_if_new_subdomain(self, url):
+        ''' Gets just the subdomain, then adds if new and updates if already exists. '''
         url = normalize(url)
         parsed_url = urlparse(url)
         base_url = parsed_url.scheme + "://" + parsed_url.netloc

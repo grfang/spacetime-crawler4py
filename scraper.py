@@ -9,17 +9,20 @@ from collections import defaultdict
 def scraper(url, resp, small_buffer):
     links = extract_next_links(url, resp, small_buffer)
     if(links != []):
-        small_buffer.append((url, resp))
-    if(len(links) > 5):
-        small_buffer.pop(0)
+        decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
+        soup = BeautifulSoup(decoded, 'html.parser')
+        text = soup.get_text()
+        weight = findWeights(text)
+        fingerprint = generate_fingerprint(weight)
+        small_buffer.append(fingerprint)  # small buffer that stores valid fingerprint of the URL to compare later
     
     # prep output for report 2
     decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
     soup = BeautifulSoup(decoded, 'html.parser')
-    text = soup.get_text()
+    text = soup.get_text()  # use beautiful soup to get content from HTML tags
     numWords = len(findWords(text))
     with open("report-2.txt", "a") as file:
-        file.write(url + " " + str(numWords)+"\n")
+        file.write(url + " " + str(numWords)+"\n")  # for report question number 2 longest page in terms of word
     
     # prep output for report 3
     update_frequencies(text)
@@ -39,86 +42,99 @@ def extract_next_links(url, resp, small_buffer):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
 
-    # error checking
+    # error checking to make sure the crawler won't crash
     if resp.status != 200:
         print(resp.error)
         return list()
     elif not resp.raw_response.content:
         return list()
     
-    # decode bytes to html
-    decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
+    try:
+        # decode bytes to html
+        decoded = resp.raw_response.content.decode("utf-8", errors="ignore")
+    except:
+        return list()
     
-    # parse for href
-    soup = BeautifulSoup(decoded, 'html.parser')
+    try:
+        # parse for href
+        soup = BeautifulSoup(decoded, 'html.parser')
+    except:
+        return list()
 
     # get base url in case of relative urls found
     base_url = resp.url
 
-    # FILTER OUT: large & small files
-    text = soup.get_text()
-    text_length = len(text)
-    with open("length_threshold.txt", "a") as file:
-        file.write(str(text_length)+"\n")
-    if text_length < 100 or text_length > 30000:
-        print(f"Filtering out {url} bc file too large/small")
-        return list()
-
-    # FILTER OUT: low information
-    html_length = len(soup.prettify())
-    ratio = text_length / html_length
-    with open("ratio_threshold.txt", "a") as file:
-        file.write(str(ratio)+"\n")
-    if ratio <= 0.03:
-        print(f"Filtering out {url} bc low info")
-        return list()
-
-    # FILTER OUT: similar pages w/ simhashing
-    currWeight = findWeights(text)
-    currFingerprint = generate_fingerprint(currWeight)
-    for link, r in small_buffer:
-        decoded2 = r.raw_response.content.decode("utf-8", errors="ignore")
-        soup2 = BeautifulSoup(decoded2, 'html.parser')
-        text2 = soup2.get_text()
-        prevWeight = findWeights(text2)
-        prevFingerprint = generate_fingerprint(prevWeight)
-        if similarity(currFingerprint, prevFingerprint) >= (31/32):
-            print(f"Filtering out {url} bc too similar")
+    try:
+        # FILTER OUT: large & small files
+        text = soup.get_text()
+        text_length = len(text)
+        with open("length_threshold.txt", "a") as file:
+            file.write(str(text_length)+"\n")  # save the result into the file
+        if text_length < 300 or text_length > 38000:  # either the page contains too little or too much words
+            print(f"Filtering out {url} bc file too large/small")
             return list()
 
+        # FILTER OUT: low information
+        html_length = len(soup.prettify())
+        ratio = text_length / html_length
+        with open("ratio_threshold.txt", "a") as file:
+            file.write(str(ratio)+"\n")
+        if ratio <= 0.03:
+            print(f"Filtering out {url} bc low info")
+            return list()
 
-    final_links = []
-    links = soup.find_all("a")
-    for link in links:
-        href = link.get("href")
-        if href != "#" and href is not None:
-            absolute_link = href
-            # check if the link is already an absolute URL
-            if not urlparse(href).scheme:
-                # convert relative link to absolute link
-                absolute_link = urljoin(base_url, href)
-            final_links.append(absolute_link)
+        # FILTER OUT: similar pages w/ simhashing
+        currWeight = findWeights(text)
+        currFingerprint = generate_fingerprint(currWeight)
+        for prevFingerprint in small_buffer:
+            if similarity(currFingerprint, prevFingerprint) >= (60.8/64):   # 95% similarity
+                print(f"Filtering out {url} bc too similar")
+                return list()
+    except:
+        return list()
+
+
+    final_links = []  # links that will be returned to the frontier
+    try:
+        links = soup.find_all("a")
+        for link in links:
+            href = link.get("href")
+            if href != "#" and href is not None:
+                absolute_link = href
+                # check if the link is already an absolute URL
+                if not urlparse(href).scheme:
+                    # convert relative link to absolute link
+                    absolute_link = urljoin(base_url, href)
+                final_links.append(absolute_link)
+    except:
+        return list()
     return final_links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
-    # TODO: might need to filter out more invalid extensions
     
     try:
-        url = url.replace('\u200E', '')
+        url = url.replace('\u200E', '')  # handling U+200E Left-to-Right Mark (LRM) Unicode Character
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
 
-        banlist = ['gitlab', 'eppstein', 'events', 'calendar']
+        events = r'/events/'
+        calendar = r'/calendar/'
+        if re.search(events, url) or re.search(calendar, url):
+            return False
+        banlist = ['gitlab.com']
         if any(word in url for word in banlist):
             return False
-        query_banlist = ['edit', 'download', 'login', 'backlink']
+        query_banlist = ['edit', 'download', 'login', 'backlink', 'share', 'ical', 'id=', 'version=', 'history']
         if any(word in parsed.query for word in query_banlist):
             return False
-
+        frag_banlist = ['menu', 'L']
+        if any(word in parsed.fragment for word in frag_banlist):
+            return False
+        # banlist for traps, don't crawl them
 
         # FILTER OUT: non ics.uci.edu domains
         domains = ["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"]
@@ -225,7 +241,7 @@ def update_frequencies(text):
         else:
             old_data[word] = count
     
-    with open("report-3.json", "w") as file:
+    with open("report-3.json", "w") as file:  # write into files to answer question number 3, most common words under these domains
         json.dump(old_data, file, indent=4)
 
 
@@ -259,11 +275,11 @@ def generate_fingerprint(weights):
     Generates a fingerprint for simhashing purposes
     '''
     # initialize Vector V
-    V = np.zeros(32, dtype=int)
+    V = np.zeros(64, dtype=int)
 
     for word, weight in weights.items():
         # generate hash value
-        hash_value = hashlib.sha256(word.encode()).digest()[:4]
+        hash_value = hashlib.sha256(word.encode()).digest()[:8]
         hash = ''.join(f"{byte:08b}" for byte in hash_value)
 
         # create vector V
@@ -284,4 +300,4 @@ def similarity(fingerprint1, fingerprint2):
     '''
     same_bits = sum(b1 == b2 for b1, b2 in zip(fingerprint1, fingerprint2))
 
-    return same_bits / 32.0
+    return same_bits / 64.0
